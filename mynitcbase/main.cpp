@@ -5,35 +5,87 @@
 #include "Disk_Class/Disk.h"
 #include "FrontendInterface/FrontendInterface.h"
 
-int main(int argc, char *argv[]) {
 
+void printAttributes () {
+	
+	RecBuffer relCatBuffer(RELCAT_BLOCK);
+	RecBuffer attrCatBuffer(ATTRCAT_BLOCK);
+
+	
+	HeadInfo relCatHeader;
+	HeadInfo attrCatHeader;
+
+	
+	relCatBuffer.getHeader(&relCatHeader);
+	attrCatBuffer.getHeader(&attrCatHeader);
+
+	
+	for (int i = 0, attrCatSlotIndex = 0; i < relCatHeader.numEntries; i++){
+		
+		Attribute relCatRecord[RELCAT_NO_ATTRS]; 
+		relCatBuffer.getRecord(relCatRecord, i);
+
+		printf("Relation: %s\n", relCatRecord[RELCAT_REL_NAME_INDEX].sVal);
+
+
+		for (int j = 0; j < relCatRecord[RELCAT_NO_ATTRIBUTES_INDEX].nVal; j++, attrCatSlotIndex++){
+			
+			Attribute attrCatRecord[ATTRCAT_NO_ATTRS];
+			attrCatBuffer.getRecord(attrCatRecord, attrCatSlotIndex);
+
+			
+			if (strcmp(attrCatRecord[ATTRCAT_REL_NAME_INDEX].sVal, relCatRecord[RELCAT_REL_NAME_INDEX].sVal) == 0){
+				const char *attrType = attrCatRecord[ATTRCAT_ATTR_TYPE_INDEX].nVal == NUMBER ? "NUM" : "STR";
+				printf("  %s: %s\n", attrCatRecord[ATTRCAT_ATTR_NAME_INDEX].sVal, attrType);
+			}
+
+
+			if (attrCatSlotIndex == attrCatHeader.numSlots - 1) {
+        if(attrCatHeader.rblock == -1) break;
+				attrCatSlotIndex = -1; 
+				attrCatBuffer = RecBuffer (attrCatHeader.rblock);
+				attrCatBuffer.getHeader(&attrCatHeader);
+			}
+		}
+
+		printf("\n");
+	}
+}
+
+void updateAttribute(const char* relName, const char* oldAttrName, const char* newAttrName){
+  int x = ATTRCAT_BLOCK;
+  int f = 0;
+  HeadInfo attrCatHeader;
+    do{
+      RecBuffer attrCatBuffer(x);
+      attrCatBuffer.getHeader(&attrCatHeader);
+
+      for (int j = 0; j < attrCatHeader.numEntries; j++) {
+
+
+        //declare attrCatRecord and load the attribute catalog entry
+        Attribute attrCatRecord[ATTRCAT_NO_ATTRS];
+        attrCatBuffer.getRecord(attrCatRecord, j);
+
+        //if that att
+        if (strcmp(attrCatRecord[ATTRCAT_REL_NAME_INDEX].sVal, relName) == 0 && strcmp(attrCatRecord[ATTRCAT_ATTR_NAME_INDEX].sVal, oldAttrName) == 0) {
+          strcpy(attrCatRecord[ATTRCAT_ATTR_NAME_INDEX].sVal, newAttrName);
+          attrCatBuffer.setRecord(attrCatRecord, j);
+          f = 1;
+          break;
+        }
+      }
+      x = attrCatHeader.rblock;
+
+    } while(x != -1 && f == 0);
+}
+
+int main(int argc, char *argv[]) {
   Disk disk_run;
 
-  //read from block 7000
-  unsigned char buffer[BLOCK_SIZE];
-  Disk::readBlock(buffer, 7000);
-
-  //write into block 7000
-  char message[] = "hello";
-  memcpy(buffer + 20, message, 6);
-  Disk::writeBlock(buffer, 7000);
-
-  
-  unsigned char buffer2[BLOCK_SIZE];
-  char message2[6];
-  Disk::readBlock(buffer2, 7000);
-  memcpy(message2, buffer2 + 20, 6);
-  std::cout << message2;
-  
-/*
-  unsigned char buffer2[BLOCK_SIZE];
-  Disk::readBlock(buffer2, 0);
-
-  for (int i = 0; i < 20; i++) {
-      std::cout << (int)buffer2[i] << " ";
-  }
-  std::cout << std::endl;
-*/
+  printAttributes();
+  updateAttribute("Sample", "CGPA", "Mark");
+  printAttributes();
 
   return 0;
 }
