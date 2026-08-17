@@ -1,3 +1,4 @@
+
 #include "BlockBuffer.h"
 #include <cstdlib>
 #include <cstring>
@@ -14,16 +15,19 @@ RecBuffer::RecBuffer(int blockNum) : BlockBuffer::BlockBuffer(blockNum) {}
 
 int BlockBuffer::getHeader(struct HeadInfo *head) {
 
-  //copy the block contents into buffer
-  unsigned char buffer[BLOCK_SIZE];
-  Disk::readBlock(buffer, this->blockNum);
+  unsigned char *bufferPtr;
+  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
+  if (ret != SUCCESS) {
+    return ret;   // return any errors that might have occured in the process
+  }
+
 
   // populate the numEntries, numAttrs and numSlots fields in *head
-  memcpy(&head->numSlots, buffer + 24, 4);
-  memcpy(&head->numEntries, buffer + 16, 4);
-  memcpy(&head->numAttrs, buffer + 20, 4);
-  memcpy(&head->rblock, buffer + 12, 4);
-  memcpy(&head->lblock, buffer + 8, 4);
+  memcpy(&head->numSlots, bufferPtr + 24, 4);
+  memcpy(&head->numEntries, bufferPtr + 16, 4);
+  memcpy(&head->numAttrs, bufferPtr + 20, 4);
+  memcpy(&head->rblock, bufferPtr + 12, 4);
+  memcpy(&head->lblock, bufferPtr + 8, 4);
 
   return SUCCESS;
 }
@@ -31,6 +35,12 @@ int BlockBuffer::getHeader(struct HeadInfo *head) {
 
 
 int RecBuffer::getRecord(union Attribute *rec, int slotNum) {
+
+  unsigned char *bufferPtr;
+  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
+  if (ret != SUCCESS) {
+    return ret;   // return any errors that might have occured in the process
+  }
 
   //get the header of this block
   struct HeadInfo head;
@@ -40,13 +50,10 @@ int RecBuffer::getRecord(union Attribute *rec, int slotNum) {
   int attrCount = head.numAttrs;
   int slotCount = head.numSlots;
 
-  //copy the block contents into buffer
-  unsigned char buffer[BLOCK_SIZE];
-  Disk::readBlock(buffer, this->blockNum);
 
  
   int recordSize = attrCount * ATTR_SIZE;
-  unsigned char *slotPointer = buffer + HEADER_SIZE + slotCount + (recordSize * slotNum);
+  unsigned char *slotPointer = bufferPtr + HEADER_SIZE + slotCount + (recordSize * slotNum);
 
   // load the record into the rec data structure
   memcpy(rec, slotPointer, recordSize);
@@ -55,7 +62,25 @@ int RecBuffer::getRecord(union Attribute *rec, int slotNum) {
 }
 
 
+int BlockBuffer::loadBlockAndGetBufferPtr(unsigned char **buffPtr) {
+  // check whether the block is already present in the buffer using StaticBuffer.getBufferNum()
+  int bufferNum = StaticBuffer::getBufferNum(this->blockNum);
 
+  if (bufferNum == E_BLOCKNOTINBUFFER) {
+    bufferNum = StaticBuffer::getFreeBuffer(this->blockNum);
+
+    if (bufferNum == E_OUTOFBOUND) {
+      return E_OUTOFBOUND;
+    }
+
+    Disk::readBlock(StaticBuffer::blocks[bufferNum], this->blockNum);
+  }
+
+  // store the pointer to this buffer (blocks[bufferNum]) in *buffPtr
+  *buffPtr = StaticBuffer::blocks[bufferNum];
+
+  return SUCCESS;
+}
 
 int RecBuffer::setRecord(union Attribute *record, int slotNum){
     HeadInfo head;
@@ -79,5 +104,3 @@ int RecBuffer::setRecord(union Attribute *record, int slotNum){
 
     return SUCCESS;
 }
-
-
