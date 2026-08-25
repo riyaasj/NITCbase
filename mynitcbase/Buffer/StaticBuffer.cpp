@@ -1,8 +1,16 @@
 #include "StaticBuffer.h"
 
-
 unsigned char StaticBuffer::blocks[BUFFER_CAPACITY][BLOCK_SIZE];
 struct BufferMetaInfo StaticBuffer::metainfo[BUFFER_CAPACITY];
+
+/*
+  methods implemented:
+    StaticBuffer()
+    ~StaticBuffer()
+    getFreeBuffer(int blockNum)
+    getBufferNum(int blockNum)
+*/
+
 
 StaticBuffer::StaticBuffer() {
 
@@ -12,46 +20,46 @@ StaticBuffer::StaticBuffer() {
   }
 }
 
-/*
-At this stage, we are not writing back from the buffer to the disk since we are
-not modifying the buffer. So, we will define an empty destructor for now. In
-subsequent stages, we will implement the write-back functionality here.
-*/
+
+//empty destructor since we are not writing back from the buffer to the disk
 StaticBuffer::~StaticBuffer() {}
 
+
+
+//get free buffer block
 int StaticBuffer::getFreeBuffer(int blockNum) {
   if (blockNum < 0 || blockNum > DISK_BLOCKS) {
     return E_OUTOFBOUND;
   }
+
   int allocatedBuffer;
 
-  // iterate through all the blocks in the StaticBuffer
-  // find the first free block in the buffer (check metainfo)
-  // assign allocatedBuffer = index of the free block
-
+  // iterate through all the blocks and find the first free block in the buffer (check metainfo)
   for (allocatedBuffer = 0; allocatedBuffer < BUFFER_CAPACITY; allocatedBuffer++) {
     if(metainfo[allocatedBuffer].free == true) break;
   }
+
   metainfo[allocatedBuffer].free = false;
   metainfo[allocatedBuffer].blockNum = blockNum;
 
   return allocatedBuffer;
 }
 
-/* Get the buffer index where a particular block is stored
-   or E_BLOCKNOTINBUFFER otherwise
-*/
+
+
+//Get the buffer index where a particular block is stored
 int StaticBuffer::getBufferNum(int blockNum) {
-  // Check if blockNum is valid (between zero and DISK_BLOCKS)
-  // and return E_OUTOFBOUND if not valid.
+
+  //Check if blockNum is valid
   if (blockNum < 0 || blockNum > DISK_BLOCKS) {
     return E_OUTOFBOUND;
   }
 
-  // find and return the bufferIndex which corresponds to blockNum (check metainfo)
+  //find and return the bufferIndex which corresponds to blockNum
   for (int bufferIndex = 0; bufferIndex < BUFFER_CAPACITY; bufferIndex++) {
     if(metainfo[bufferIndex].blockNum == blockNum) return bufferIndex;
   }
-  // if block is not in the buffer
+
+  //if block is not in the buffer
   return E_BLOCKNOTINBUFFER;
 }
