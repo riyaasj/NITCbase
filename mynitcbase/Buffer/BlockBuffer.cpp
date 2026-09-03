@@ -12,6 +12,7 @@
     RecBuffer:
       RecBuffer(int blockNum);
       getRecord(union Attribute *rec, int slotNum)
+      getSlotMap(unsigned char *slotMap)
 */
 
 
@@ -102,6 +103,45 @@ int RecBuffer::getRecord(union Attribute *rec, int slotNum) {
 }
 
 
+int RecBuffer::getSlotMap(unsigned char *slotMap) {
+
+  unsigned char *bufferPtr;
+  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
+
+  if (ret != SUCCESS) {
+    return ret;
+  }
+
+  //get the header of the block using getHeader() function
+  struct HeadInfo head;
+  BlockBuffer::getHeader(&head);
+
+  int slotCount = head.numSlots; //number of slots in block from header
+
+  // get a pointer to the beginning of the slotmap in memory by offsetting HEADER_SIZE
+  unsigned char *slotMapInBuffer = bufferPtr + HEADER_SIZE;
+
+  memcpy(slotMap, slotMapInBuffer, slotCount);
+
+  return SUCCESS;
+}
+
+
+int compareAttrs(union Attribute attr1, union Attribute attr2, int attrType) {
+
+    double diff;
+    if(attrType == STRING){
+      diff = strcmp(attr1.sVal, attr2.sVal);
+    }
+    else{
+      diff = attr1.nVal - attr2.nVal;
+    }
+
+    if(diff > 0) return 1;
+    if(diff < 0) return -1;
+    return 0;
+   
+}
 
 
 int RecBuffer::setRecord(union Attribute *record, int slotNum){
@@ -125,50 +165,4 @@ int RecBuffer::setRecord(union Attribute *record, int slotNum){
     Disk::writeBlock(buffer, this->blockNum);
 
     return SUCCESS;
-}
-
-
-/* used to get the slotmap from a record block
-NOTE: this function expects the caller to allocate memory for `*slotMap`
-*/
-int RecBuffer::getSlotMap(unsigned char *slotMap) {
-  unsigned char *bufferPtr;
-
-  // get the starting address of the buffer containing the block using loadBlockAndGetBufferPtr().
-  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
-  if (ret != SUCCESS) {
-    return ret;
-  }
-
-  struct HeadInfo head;
-  // get the header of the block using getHeader() function
-  BlockBuffer::getHeader(&head);
-
-  int slotCount = head.numSlots;/* number of slots in block from header */;
-
-  // get a pointer to the beginning of the slotmap in memory by offsetting HEADER_SIZE
-  unsigned char *slotMapInBuffer = bufferPtr + HEADER_SIZE;
-
-  // copy the values from `slotMapInBuffer` to `slotMap` (size is `slotCount`)
-  memcpy(slotMap, slotMapInBuffer, slotCount);
-
-  return SUCCESS;
-}
-
-
-
-int compareAttrs(union Attribute attr1, union Attribute attr2, int attrType) {
-
-    double diff;
-    if(attrType == STRING){
-      diff = strcmp(attr1.sVal, attr2.sVal);
-    }
-    else{
-      diff = attr1.nVal - attr2.nVal;
-    }
-
-    if(diff > 0) return 1;
-    if(diff < 0) return -1;
-    return 0;
-   
 }

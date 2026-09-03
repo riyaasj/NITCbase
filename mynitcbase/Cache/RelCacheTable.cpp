@@ -1,14 +1,22 @@
 #include "RelCacheTable.h"
 #include <cstring>
 
-
 RelCacheEntry* RelCacheTable::relCache[MAX_OPEN];
 
 /*
-Get the relation catalog entry for the relation with rel-id `relId` from the cache
-NOTE: this function expects the caller to allocate memory for `*relCatBuf`
+  methods implemented:
+    getRelCatEntry(int relId, RelCatEntry* relCatBuf)
+    recordToRelCatEntry(union Attribute record[RELCAT_NO_ATTRS], RelCatEntry* relCatEntry)
+    getSearchIndex(int relId, RecId *searchIndex)
+    setSearchIndex(int relId, RecId *searchIndex)
+    resetSearchIndex(int relId)
 */
+
+
+//returns the relCatEntry inside the relCacheEnty
 int RelCacheTable::getRelCatEntry(int relId, RelCatEntry* relCatBuf) {
+
+  //check if relId valid
   if (relId < 0 || relId >= MAX_OPEN) {
     return E_OUTOFBOUND;
   }
@@ -24,11 +32,8 @@ int RelCacheTable::getRelCatEntry(int relId, RelCatEntry* relCatBuf) {
   return SUCCESS;
 }
 
-/* Converts a relation catalog record to RelCatEntry struct
-    We get the record as Attribute[] from the BlockBuffer.getRecord() function.
-    This function will convert that to a struct RelCatEntry type.
-NOTE: this function expects the caller to allocate memory for `*relCatEntry`
-*/
+
+//Converts a relation catalog record to RelCatEntry struct
 void RelCacheTable::recordToRelCatEntry(union Attribute record[RELCAT_NO_ATTRS], RelCatEntry* relCatEntry) {
   strcpy(relCatEntry->relName, record[RELCAT_REL_NAME_INDEX].sVal);
   relCatEntry->numAttrs = (int)record[RELCAT_NO_ATTRIBUTES_INDEX].nVal;
@@ -40,59 +45,45 @@ void RelCacheTable::recordToRelCatEntry(union Attribute record[RELCAT_NO_ATTRS],
 }
 
 
-
-
-/* will return the searchIndex for the relation corresponding to `relId
-NOTE: this function expects the caller to allocate memory for `*searchIndex`
-*/
-
 int RelCacheTable::getSearchIndex(int relId, RecId *searchIndex) {
 
-
-  // check if 0 <= relId < MAX_OPEN and return E_OUTOFBOUND otherwise
+  //check if relId valid
   if (relId < 0 || relId >= MAX_OPEN) {
     return E_OUTOFBOUND;
   }
-
 
   // if there's no entry at the rel-id
   if (relCache[relId] == nullptr) {
     return E_RELNOTOPEN;
   }
 
-  // copy the searchIndex field of the Relation Cache entry corresponding
-  //   to input relId to the searchIndex variable.
   *searchIndex = relCache[relId]->searchIndex;
   return SUCCESS;
 }
 
+
 int RelCacheTable::setSearchIndex(int relId, RecId *searchIndex) {
 
-  // check if 0 <= relId < MAX_OPEN and return E_OUTOFBOUND otherwise
   if (relId < 0 || relId >= MAX_OPEN) {
     return E_OUTOFBOUND;
   }
 
-  
-  // if there's no entry at the rel-id
   if (relCache[relId] == nullptr) {
     return E_RELNOTOPEN;
   }
-  relCache[relId]->searchIndex = *searchIndex;
-  // update the searchIndex value in the relCache for the relId to the
-  // searchIndex argument
 
+  relCache[relId]->searchIndex = *searchIndex;
   return SUCCESS;
 }
+
 
 int RelCacheTable::resetSearchIndex(int relId) {
   if (relId < 0 || relId >= MAX_OPEN)
 		return E_OUTOFBOUND;
 
-	// check if relCache[relId] == nullptr and return E_RELNOTOPEN if true
 	if (RelCacheTable::relCache[relId] == nullptr)
 		return E_RELNOTOPEN;
+    
   RelCacheTable::relCache[relId]->searchIndex = {-1, -1};
   return SUCCESS;
-  // use setSearchIndex to set the search index to {-1, -1}
 }
