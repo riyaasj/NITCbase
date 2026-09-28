@@ -56,6 +56,13 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
     }
   } 
   else if (type == STRING) {
+
+    if (isNumber(strVal)) {
+      return E_ATTRTYPEMISMATCH;
+      
+    } else {
+      strcpy(attrVal.sVal, strVal);
+    }
     strcpy(attrVal.sVal, strVal);
   }
 

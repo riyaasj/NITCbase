@@ -62,6 +62,16 @@ int BlockBuffer::loadBlockAndGetBufferPtr(unsigned char **buffPtr) {
 
     Disk::readBlock(StaticBuffer::blocks[bufferNum], this->blockNum);
   }
+  else{
+    for(int i = 0; i < BUFFER_CAPACITY; i++){
+      if(i == bufferNum){
+        StaticBuffer::metainfo[i].timeStamp = 0;
+      }
+      else if(StaticBuffer::metainfo[i].free == false){
+        StaticBuffer::metainfo[i].timeStamp++;
+      }
+    }
+  }
 
   // store the pointer to this buffer
   *buffPtr = StaticBuffer::blocks[bufferNum];
@@ -144,25 +154,39 @@ int compareAttrs(union Attribute attr1, union Attribute attr2, int attrType) {
 }
 
 
-int RecBuffer::setRecord(union Attribute *record, int slotNum){
-    HeadInfo head;
-    BlockBuffer::getHeader(&head);
+int RecBuffer::setRecord(union Attribute *rec, int slotNum) {
+  
+  //get the buffer block containing the block
+  unsigned char *bufferPtr;
+  int bufferNum=BlockBuffer::loadBlockAndGetBufferPtr(&bufferPtr);
+  
+  if(bufferNum!=SUCCESS){
+    return bufferNum;
+  }
 
-    int attrCount = head.numAttrs;
-    int slotCount = head.numSlots;
 
- 
-    unsigned char buffer[BLOCK_SIZE];
-    Disk::readBlock(buffer, this->blockNum);
+  //get the header of the block(we need number of attr and number of slots)
+  HeadInfo head;
+  BlockBuffer::getHeader(&head);
+  
 
-   
-    int recordSize = attrCount * ATTR_SIZE;
-    unsigned char *slotPointer = buffer + (32 + slotCount + (recordSize * slotNum)); // calculate buffer + offset
+  int attrCount = head.numAttrs;
+  int slotCount = head.numSlots;
 
-   
-    memcpy(slotPointer, record, recordSize);
 
-    Disk::writeBlock(buffer, this->blockNum);
+  //number of slots is out of range
+  if(slotNum > slotCount or slotNum < 0){
+    return E_OUTOFBOUND;
+  }
 
-    return SUCCESS;
+  //offset
+  int recordSize = attrCount * ATTR_SIZE;
+  unsigned char *slotPointer = bufferPtr + (32 + slotCount + (recordSize * slotNum));
+
+  memcpy(slotPointer,rec,recordSize);
+
+  StaticBuffer::setDirtyBit(this->blockNum);
+  
+  return SUCCESS;
 }
+
