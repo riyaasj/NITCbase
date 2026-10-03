@@ -227,6 +227,20 @@ int OpenRelTable::closeRel(int relId) {
     return E_RELNOTOPEN;
   }
 
+
+  if(RelCacheTable::relCache[relId]->dirty == true){
+    /* Get the Relation Catalog entry from RelCacheTable::relCache
+		Then convert it to a record using RelCacheTable::relCatEntryToRecord(). */
+		Attribute relCatBuffer [RELCAT_NO_ATTRS];
+		RelCacheTable::relCatEntryToRecord(&(RelCacheTable::relCache[relId]->relCatEntry), relCatBuffer);
+
+		// declaring an object of RecBuffer class to write back to the buffer
+		RecId recId = RelCacheTable::relCache[relId]->recId;
+		RecBuffer relCatBlock(recId.block);
+
+		// Write back to the buffer using relCatBlock.setRecord() with recId.slot
+		relCatBlock.setRecord(relCatBuffer, RelCacheTable::relCache[relId]->recId.slot);
+  }
   //free relCacheTable entry
   free(RelCacheTable::relCache[relId]);
 
