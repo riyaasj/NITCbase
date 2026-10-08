@@ -88,18 +88,54 @@ OpenRelTable::OpenRelTable() {
 }
 
 
-OpenRelTable::~OpenRelTable() {
+OpenRelTable::~OpenRelTable()
+{
+	// free all the memory that you allocated in the constructor
 
-  //close all except 0 and 1
-  for (int i = 2; i < MAX_OPEN; ++i) {
-    if (!tableMetaInfo[i].free) {
-      OpenRelTable::closeRel(i); 
-    }
-  }
-  // free all the memory that you allocated in the constructor
-  //?
+	//? close all open relations (from rel-id = 2 onwards. Why?)
+	for (int i = 2; i < MAX_OPEN; ++i)
+		if (!tableMetaInfo[i].free)
+			OpenRelTable::closeRel(i); // we will implement this function later
+
+	if(RelCacheTable::relCache[ATTRCAT_RELID]->dirty==true){
+		RelCatEntry relCatBuffer;
+		RelCacheTable::getRelCatEntry(ATTRCAT_RELID,&relCatBuffer);
+		Attribute relCatRecord[RELCAT_NO_ATTRS];
+		RelCacheTable::relCatEntryToRecord(&relCatBuffer,relCatRecord);
+		RecId recId=RelCacheTable::relCache[ATTRCAT_RELID]->recId;
+		RecBuffer relCatBlock(recId.block);
+		relCatBlock.setRecord(relCatRecord,recId.slot);
+	}
+	free(RelCacheTable::relCache[ATTRCAT_RELID]);
+
+	if(RelCacheTable::relCache[RELCAT_RELID]->dirty==true){
+		RelCatEntry relCatBuffer;
+		RelCacheTable::getRelCatEntry(RELCAT_RELID,&relCatBuffer);
+		Attribute relCatRecord[ATTRCAT_NO_ATTRS];
+		RelCacheTable::relCatEntryToRecord(&relCatBuffer,relCatRecord);
+		RecId recId=RelCacheTable::relCache[RELCAT_RELID]->recId;
+		RecBuffer attrCatRecord(recId.block);
+		attrCatRecord.setRecord(relCatRecord,recId.slot);
+
+	}
+	free(RelCacheTable::relCache[RELCAT_RELID]);
+	// free the memory allocated for rel-id 0 and 1 in the caches
+	for(int relID=RELCAT_RELID;relID<=ATTRCAT_RELID;relID++){
+		AttrCacheEntry *curr=AttrCacheTable::attrCache[relID],*next=NULL;
+		while(curr!=nullptr){
+			next=curr->next;
+			if(curr->dirty==true){
+				AttrCatEntry attrCatEntry=curr->attrCatEntry;
+				Attribute AttrCatrecord[ATTRCAT_NO_ATTRS];
+				AttrCacheTable::attrCatEntryToRecord(&attrCatEntry,AttrCatrecord);
+				RecBuffer attrCatBlock(curr->recId.block);
+				attrCatBlock.setRecord(AttrCatrecord,curr->recId.slot);
+			}
+			free(curr);
+			curr=next;
+		}
+	}
 }
-
 
 int OpenRelTable::getRelId(char relName[ATTR_SIZE]) {
   for (int i = 0; i < MAX_OPEN; i++) {
