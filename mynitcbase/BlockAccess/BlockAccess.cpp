@@ -449,4 +449,75 @@ int BlockAccess::search(int relId,Attribute *record, char *attrName, Attribute a
     
 
     
-  
+  int BlockAccess::project(int relId, Attribute *record){
+
+    //get the previous search index of the relation
+    RecId prevRecId;
+    RelCacheTable::getSearchIndex(relId, &prevRecId);
+
+    int block, slot;
+
+    //new projection operation
+    if(prevRecId.block == -1 && prevRecId.slot == -1){
+        
+        //start from the first block 
+        RelCatEntry relCatEntry;
+        int ret = RelCacheTable::getRelCatEntry(relId, &relCatEntry);
+
+        if(ret != SUCCESS){
+            return ret;
+        }
+
+        block = relCatEntry.firstBlk;
+        slot = 0;
+    }
+    else{
+        // means the projection has already in progress.
+        block = prevRecId.block;
+        slot = prevRecId.slot + 1;
+    }
+
+    
+    while(block != -1){
+        
+        RecBuffer recBuffer(block);
+
+        struct HeadInfo head;
+        recBuffer.getHeader(&head);
+
+        unsigned char slotMap[head.numSlots];
+        recBuffer.getSlotMap(slotMap);
+
+
+        //no more slots in the current block, move to the next block
+        if(slot >= head.numSlots){
+            block = head.rblock;
+            slot = 0;
+        }
+
+        // if slot is free.
+        else if(slotMap[slot] == SLOT_UNOCCUPIED){
+            slot++;
+        }
+        else{
+            break; // next occupied slot and record has been found.
+        }
+    }
+
+    //all records have been projected, return E_NOTFOUND
+    if(block == -1){
+        return E_NOTFOUND;
+    }
+
+    //store the record Id found
+    RecId nextRecId{block, slot};
+
+    //set the searchIndex to nextRecId
+    RelCacheTable::setSearchIndex(relId, &nextRecId);
+
+    RecBuffer recBuffer(nextRecId.block);
+    recBuffer.getRecord(record, nextRecId.slot);
+
+    return SUCCESS;
+
+}

@@ -7,15 +7,27 @@ BlockBuffer::BlockBuffer(int blockNum) {
     this->blockNum = blockNum;
 }
 
-BlockBuffer::BlockBuffer(char blockType) {
-    int block_type = blockType == 'R'? REC: UNUSED_BLK;
-    int blockNum = getFreeBlock(block_type);
-    if(blockNum < 0|| blockNum >= DISK_BLOCKS){
-        printf("Block not available.\n");
-        this->blockNum = blockNum;
-        return;
-    } 
-    this->blockNum = blockNum;
+BlockBuffer::BlockBuffer(char blockType){
+    /*
+        allocate a block on the disk and a buffer in the memory to hold the new block of
+        given type using getFreeBlock() and get the return error codes if any.
+    */
+    int intBlockType;
+    if(blockType == 'R'){
+        intBlockType = REC;
+    }
+    else if(blockType == 'I'){
+        intBlockType = IND_INTERNAL;
+    }
+    else{
+        intBlockType = IND_LEAF;
+    }
+
+    int ret = BlockBuffer::getFreeBlock(intBlockType);
+    
+    // set the object's blockNum to the return value.
+    // if return value is an error code, set blockNum as the returned error code.
+    this->blockNum = ret;
 }
 
 RecBuffer::RecBuffer(int blockNum) : BlockBuffer::BlockBuffer(blockNum) {} /* Constructor Initializer*/
@@ -88,6 +100,7 @@ int BlockBuffer::getFreeBlock(int blockType) {
     }
 
     struct HeadInfo header;
+    header.blockType = blockType;
     header.lblock = -1;
     header.rblock = -1;
     header.pblock = -1;

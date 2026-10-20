@@ -59,32 +59,40 @@ StaticBuffer::~StaticBuffer() {
 
 //get free buffer block
 int StaticBuffer::getFreeBuffer(int blockNum) {
-  if (blockNum < 0 || blockNum > DISK_BLOCKS) {
-    return E_OUTOFBOUND;
+  if (blockNum < 0 || blockNum >= DISK_BLOCKS) {
+      return E_OUTOFBOUND;
   }
 
+  int allocatedBuffer = -1;
+  int oldestBuffer = -1;
+  int maxTimeStamp = -1;
 
-  int allocatedBuffer = -1, maxTimeStamp = -1, b = -1;
+  for (int i = 0; i < BUFFER_CAPACITY; i++) {
+      if (metainfo[i].free) {
+          allocatedBuffer = i;
+          break;
+      }
 
-  for(int i = 0; i < BUFFER_CAPACITY; i++){
-
-    if(metainfo[i].free == false && metainfo[i].timeStamp > maxTimeStamp){
-      b = i;
-      maxTimeStamp = metainfo[i].timeStamp;
-    }
-    
-    if(metainfo[i].free == true){
-      allocatedBuffer = i;
-      break;
-    }
-     
+      if (metainfo[i].timeStamp > maxTimeStamp) {
+          maxTimeStamp = metainfo[i].timeStamp;
+          oldestBuffer = i;
+      }
   }
 
-  if(allocatedBuffer == -1){
-    if(metainfo[b].dirty == true){
-      Disk::writeBlock(blocks[b], metainfo[b].blockNum);
-      allocatedBuffer = b;
-    }
+  // If no free buffer exists, evict the oldest one.
+  if (allocatedBuffer == -1) {
+      if (oldestBuffer == -1) {
+          return E_BLOCKNOTINBUFFER;
+      }
+
+      if (metainfo[oldestBuffer].dirty) {
+          Disk::writeBlock(
+              blocks[oldestBuffer],
+              metainfo[oldestBuffer].blockNum
+          );
+      }
+
+      allocatedBuffer = oldestBuffer;
   }
 
   metainfo[allocatedBuffer].free = false;
@@ -101,7 +109,7 @@ int StaticBuffer::getFreeBuffer(int blockNum) {
 int StaticBuffer::getBufferNum(int blockNum) {
 
   //Check if blockNum is valid
-  if (blockNum < 0 || blockNum > DISK_BLOCKS) {
+  if (blockNum < 0 || blockNum >= DISK_BLOCKS) {
     return E_OUTOFBOUND;
   }
 
