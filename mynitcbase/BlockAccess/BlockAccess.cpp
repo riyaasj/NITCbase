@@ -2,6 +2,20 @@
 #include <cstring>
 #include <iostream>
 
+int BlockAccess::comparisonCount = 0;
+
+void BlockAccess::resetComparisonCount() {
+    comparisonCount = 0;
+}
+
+void BlockAccess::incrementComparisonCount() {
+    comparisonCount++;
+}
+
+int BlockAccess::getComparisonCount() {
+    return comparisonCount;
+}
+
 RecId BlockAccess::linearSearch(int relId, char attrName[ATTR_SIZE], union Attribute attrVal, int op) {
 
     //previous record id to keep track of the last record found
@@ -57,6 +71,7 @@ RecId BlockAccess::linearSearch(int relId, char attrName[ATTR_SIZE], union Attri
         AttrCatEntry attrCatEntry;
         AttrCacheTable::getAttrCatEntry(relId, attrName, &attrCatEntry);
         int attrOffset = attrCatEntry.offset;
+        BlockAccess::incrementComparisonCount();
         int cmpVal = compareAttrs(record[attrOffset], attrVal, attrCatEntry.attrType);
 
          if((op == NE && cmpVal != 0 ) ||(op == LT && cmpVal < 0) ||(op == LE && cmpVal <= 0) ||(op == EQ && cmpVal == 0) ||(op == GT && cmpVal > 0) ||(op == GE && cmpVal > 0)) {
@@ -429,20 +444,40 @@ int BlockAccess::deleteRelation(char relName[ATTR_SIZE]) {
     return SUCCESS;
 }
 
-// to copy the result of the search to record argument
-int BlockAccess::search(int relId,Attribute *record, char *attrName, Attribute attrVal, int op){
-    RecId recId={-1,-1};
+int BlockAccess::search(int relId, Attribute *record, char attrName[ATTR_SIZE], Attribute attrVal, int op){
 
-    recId=linearSearch(relId, attrName, attrVal, op);
-    if(recId.block==-1 && recId.slot==-1){
+    RecId recId;
+
+
+    //get attribute catalog entry of the attribute from attribute cache
+    AttrCatEntry attrCatEntry;
+    int ret = AttrCacheTable::getAttrCatEntry(relId, attrName, &attrCatEntry);
+    if(ret != SUCCESS){
+        return ret; 
+    }
+
+
+    int rootBlock = attrCatEntry.rootBlock;
+
+    //attribute is not indexed -> linear search
+    if(rootBlock == -1){
+        recId = BlockAccess::linearSearch(relId, attrName, attrVal, op);
+    }
+
+    //attribute in indexed -> b+ tree search
+    else{
+        recId = BPlusTree::bPlusSearch(relId, attrName, attrVal, op);
+    }
+
+
+    //if record not found
+    if(recId.block == -1 && recId.slot == -1){
         return E_NOTFOUND;
     }
 
+    //copy the record into record
     RecBuffer recBuffer(recId.block);
-    int ret=recBuffer.getRecord(record, recId.slot);
-    if(ret!=SUCCESS){
-        return ret;
-    }
+    recBuffer.getRecord(record, recId.slot);
 
     return SUCCESS;
 }

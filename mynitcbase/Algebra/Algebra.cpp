@@ -141,7 +141,9 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
   //insert into the target relation
   Attribute record[src_nAttrs];
   RelCacheTable::resetSearchIndex(srcRelId);
+  AttrCacheTable::resetSearchIndex(srcRelId,attr);
 
+  BlockAccess::resetComparisonCount();
 
   while(BlockAccess::search(srcRelId, record, attr, attrValue, op) == SUCCESS){
       int ret = BlockAccess::insert(targetRelId, record);
@@ -151,6 +153,7 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
           return ret;
       }
   }
+  cout << "Number of comparisons: " << BlockAccess::getComparisonCount() << endl;
   Schema::closeRel(targetRel);
   return SUCCESS;
 }

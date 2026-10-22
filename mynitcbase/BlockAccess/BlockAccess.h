@@ -9,7 +9,14 @@
 #include "../define/id.h"
 
 class BlockAccess {
+ private:
+  static int comparisonCount;
+
  public:
+  static void resetComparisonCount();
+  static void incrementComparisonCount();
+  static int getComparisonCount();
+
   static int search(int relId, Attribute *record, char *attrName, Attribute attrVal, int op);
 
   static int insert(int relId, union Attribute *record);
