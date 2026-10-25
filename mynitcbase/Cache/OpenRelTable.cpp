@@ -294,7 +294,7 @@ int OpenRelTable::closeRel(int relId) {
       RecId recId = head->recId;
 
       RecBuffer attrCatBlock(recId.block);
-      attrCatBlock.setRecord(attrCatBuffer, AttrCacheTable::attrCache[relId]->recId.slot);
+      attrCatBlock.setRecord(attrCatBuffer, recId.slot);
     }
     AttrCacheEntry *temp = head;
     head = head->next;
