@@ -252,6 +252,7 @@ int OpenRelTable::closeRel(int relId) {
     return E_NOTPERMITTED;
   }
 
+  //invalid relId
   if (relId < 0 || relId >= MAX_OPEN) {
     return E_OUTOFBOUND;
   }
@@ -263,32 +264,43 @@ int OpenRelTable::closeRel(int relId) {
     return E_RELNOTOPEN;
   }
 
-
+  
+  //if the relation cache entry is dirty, write it back to the buffer
   if(RelCacheTable::relCache[relId]->dirty == true){
-    /* Get the Relation Catalog entry from RelCacheTable::relCache
-		Then convert it to a record using RelCacheTable::relCatEntryToRecord(). */
-		Attribute relCatBuffer [RELCAT_NO_ATTRS];
-		RelCacheTable::relCatEntryToRecord(&(RelCacheTable::relCache[relId]->relCatEntry), relCatBuffer);
 
-		// declaring an object of RecBuffer class to write back to the buffer
+    //get the block and slot of the relation catalog entry 
+    Attribute relCatBuffer[RELCAT_NO_ATTRS];
+		RelCacheTable::relCatEntryToRecord(&(RelCacheTable::relCache[relId]->relCatEntry), relCatBuffer);
 		RecId recId = RelCacheTable::relCache[relId]->recId;
 		RecBuffer relCatBlock(recId.block);
 
-		// Write back to the buffer using relCatBlock.setRecord() with recId.slot
+    //write back the realtion catalog entry
 		relCatBlock.setRecord(relCatBuffer, RelCacheTable::relCache[relId]->recId.slot);
   }
+
+
   //free relCacheTable entry
   free(RelCacheTable::relCache[relId]);
 
+
+
   //free attrCacheTableEntry
   AttrCacheEntry *head = AttrCacheTable::attrCache[relId];
-  AttrCacheEntry *next = head->next;
-  while (next) {
-    free(head);
-    head = next;
-    next = next->next;
+  while(head){
+
+    if(head->dirty == true){
+      Attribute attrCatBuffer[ATTRCAT_NO_ATTRS];
+      AttrCacheTable::attrCatEntryToRecord(&(head->attrCatEntry), attrCatBuffer);
+      RecId recId = head->recId;
+
+      RecBuffer attrCatBlock(recId.block);
+      attrCatBlock.setRecord(attrCatBuffer, AttrCacheTable::attrCache[relId]->recId.slot);
+    }
+    AttrCacheEntry *temp = head;
+    head = head->next;
+    free(temp);
+
   }
-  free(head);
 
   // update `tableMetaInfo` to set `relId` as a free slot
   tableMetaInfo[relId].free = true;

@@ -146,3 +146,53 @@ int Schema::deleteRel(char *relName) {
   return BlockAccess::deleteRelation(relName);
 
 }
+
+
+int Schema::createIndex(char relName[ATTR_SIZE], char attrName[ATTR_SIZE]){
+    
+    if(strcmp(relName, RELCAT_RELNAME) == 0 || strcmp(relName, ATTRCAT_RELNAME) == 0){
+        E_NOTPERMITTED;
+    }
+
+    int relId = OpenRelTable::getRelId(relName);
+    if(relId < 0 || relId >= MAX_OPEN){
+        E_RELNOTOPEN;
+    }
+
+    return BPlusTree::bPlusCreate(relId, attrName);
+}
+
+// dropIndex()
+int Schema::dropIndex(char *relName, char *attrName){
+
+    if(strcmp(relName, RELCAT_RELNAME) == 0 || strcmp(relName, ATTRCAT_RELNAME) == 0){
+        E_NOTPERMITTED;
+    }
+
+    int relId = OpenRelTable::getRelId(relName);
+    if(relId < 0 || relId >= MAX_OPEN){
+        return E_RELNOTOPEN;
+    }
+
+    // get attribute catalog entry corresponding to attrName
+    AttrCatEntry attrCatEntry;
+    if(AttrCacheTable::getAttrCatEntry(relId, attrName, &attrCatEntry) != SUCCESS){
+        return E_ATTRNOTEXIST;
+    }
+
+    int rootBlock = attrCatEntry.rootBlock;
+
+    // if attribute doesn't have an index (rootBlock == -1)
+    if(rootBlock == -1){
+        return E_NOINDEX;
+    }
+
+    // destroy the bplus tree rooted at rootBlock
+    BPlusTree::bPlusDestroy(rootBlock);
+
+    // set rootBlock = -1 in attrCatEntry and set attrCatEntry
+    attrCatEntry.rootBlock = -1;
+    AttrCacheTable::setAttrCatEntry(relId, attrName, &attrCatEntry);
+
+    return SUCCESS;
+}

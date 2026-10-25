@@ -406,9 +406,9 @@ int BlockAccess::deleteRelation(char relName[ATTR_SIZE]) {
 
             else{
                 RelCatEntry relCatEntry;
-                RelCacheTable::getRelCatEntry(RELCAT_RELID, &relCatEntry);
+                RelCacheTable::getRelCatEntry(ATTRCAT_RELID, &relCatEntry);
                 relCatEntry.lastBlk = attrHeader.lblock;
-                RelCacheTable::setRelCatEntry(RELCAT_RELID, &relCatEntry);
+                RelCacheTable::setRelCatEntry(ATTRCAT_RELID, &relCatEntry);
             }
             attrBuffer.releaseBlock();
         }
