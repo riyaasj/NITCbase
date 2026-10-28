@@ -223,10 +223,9 @@ RecId BPlusTree::bPlusSearch(int relId, char attrName[ATTR_SIZE],
             ++index;
         }
 
-        // only for NE operation do we have to check the entire linked list;
-        // for all the other op it is guaranteed that the block being searched
-        // will have an entry, if it exists, satisying that op. 
-        if (op != NE) {
+        // Range searches may need to continue into the next leaf when the
+        // current leaf has no qualifying entry.
+        if (op != NE && op != GE && op != GT) {
             break;
         }
 

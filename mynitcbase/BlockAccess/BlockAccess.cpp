@@ -74,7 +74,7 @@ RecId BlockAccess::linearSearch(int relId, char attrName[ATTR_SIZE], union Attri
         BlockAccess::incrementComparisonCount();
         int cmpVal = compareAttrs(record[attrOffset], attrVal, attrCatEntry.attrType);
 
-         if((op == NE && cmpVal != 0 ) ||(op == LT && cmpVal < 0) ||(op == LE && cmpVal <= 0) ||(op == EQ && cmpVal == 0) ||(op == GT && cmpVal > 0) ||(op == GE && cmpVal > 0)) {
+         if((op == NE && cmpVal != 0 ) ||(op == LT && cmpVal < 0) ||(op == LE && cmpVal <= 0) ||(op == EQ && cmpVal == 0) ||(op == GT && cmpVal > 0) ||(op == GE && cmpVal >= 0)) {
             RecId newSearchIndex;
             newSearchIndex.block = block;
             newSearchIndex.slot = slot;
@@ -303,6 +303,21 @@ int BlockAccess::insert(int relId, union Attribute *record){
     //update numRecs in the relation catalog entry of the relation
     relCatEntry.numRecs++;
     RelCacheTable::setRelCatEntry(relId, &relCatEntry);
+
+    for(int attrOffset = 0; attrOffset < numOfAttributes; attrOffset++) {
+        AttrCatEntry attrCatEntry;
+        int ret = AttrCacheTable::getAttrCatEntry(relId, attrOffset, &attrCatEntry);
+        if(ret != SUCCESS) {
+            return ret;
+        }
+
+        if(attrCatEntry.rootBlock != -1) {
+            ret = BPlusTree::bPlusInsert(relId, attrCatEntry.attrName, record[attrOffset], rec_id);
+            if(ret != SUCCESS) {
+                return ret;
+            }
+        }
+    }
 
     return SUCCESS;
 }
