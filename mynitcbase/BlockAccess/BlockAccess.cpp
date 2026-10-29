@@ -428,6 +428,10 @@ int BlockAccess::deleteRelation(char relName[ATTR_SIZE]) {
             attrBuffer.releaseBlock();
         }
 
+        if(rootBlock != -1){
+            BPlusTree::bPlusDestroy(rootBlock);
+        }
+
     }
 
     HeadInfo relCatHeader;
